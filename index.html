@@ -1,0 +1,178 @@
+<!doctype html>
+
+<title>kengard - spaced repetition speed drills</title>
+
+<link rel="stylesheet" href="node_modules/flat-ui/bootstrap/css/bootstrap.css"/>
+<link rel="stylesheet" href="node_modules/flat-ui/css/flat-ui.css"/>
+
+<style>
+* { transition: all 0.2s ease-out; }
+*:not(.small) { font-size: 1.1em; }
+body, html { height: 100%; width: 100%; margin: 0; }
+body { display: table; padding-bottom: 15px; }
+header, footer, section { display: table-row; }
+header { height: 15px; }
+.control-panel { height: 50px; }
+#source { float: right; }
+.pane {
+  height: 100%;
+  width: 100%;
+  display: table;
+  padding: 0px 15px 15px;
+}
+.card-text {
+  vertical-align: middle;
+  text-align: center;
+  display: table-cell;
+}
+body.answering .question { display: none }
+body:not(.answering) .answer { display: none }
+#show-container { display: block; height: 100%; padding: 0px 15px 10px; }
+#show { height: 100%; }
+*:focus { outline: none !important; text-decoration: underline !important; }
+</style>
+
+<header class="small row">
+  <div class="col-xs-12">
+    <a href="/" >kengard</a>
+    <a id="source" href="https://github.com/omphalos/kengard">github</a>
+  </div>
+</header>
+<section class="row">
+  <div class="pane col-xs-12">
+    <div id="cardFront" class="card-text form-control col-xs-12"></div>
+  </div>
+</section>
+<section class="answer row">
+  <div class="pane col-xs-12">
+    <div id="cardBack" class="card-text form-control col-xs-12"></div>
+  </div>
+</section>
+<section class="control-panel answer row">
+  <div class="col-xs-4">
+    <button class="btn btn-warning btn-block" onclick="skip()">
+      Remove
+    </button>
+  </div>
+  <div class="col-xs-4">
+    <button class="btn btn-danger btn-block" onclick="wrong()">
+      Wrong
+    </button>
+  </div>
+  <div class="col-xs-4">
+    <button class="btn btn-success btn-block" onclick="right()">
+      Right
+    </button>
+  </div>
+</section>
+<section class="question row">
+  <div id="show-container" class="col-xs-12">
+    <button id="show"
+      class="btn btn-primary btn-block"
+      onclick="showAnswer()">Show</button>
+  </div>
+</section>
+<section class="control-panel question row">
+</section>
+
+<script src="node_modules/bayesian-bandit/bayesian-bandit.js"></script>
+<script>
+'use strict'
+
+var bandit, currentArmIndex, start, end, cards
+
+var xhr = new XMLHttpRequest
+xhr.open('GET', 'cards.json', true)
+xhr.onload = function() {
+  if(xhr.status !== 200) return
+  cards = JSON.parse(xhr.responseText).map(function toCard(arr) {
+    return { front: arr[0], back: arr[1] }
+  })
+  loadBandit()
+  question()
+}
+xhr.send()
+
+// Support skipping arms
+var originalArmSample = Bandit.Arm.prototype.sample
+Bandit.Arm.prototype.sample = function() {
+  if(this.skipped) return -Infinity
+  return originalArmSample.apply(this, arguments)
+}
+
+function loadBandit() {
+  bandit = new Bandit
+  bandit.arms = JSON.parse(localStorage.banditArms || '[]').map(function(arm) {
+    var armObject = new Bandit.Arm()
+    Object.keys(arm).forEach(function(key) { armObject[key] = arm[key] })
+    return armObject
+  })
+
+  // Prepare to sync bandit arms with card collection:
+  var armKeys = {}
+    , cardKeys = {}
+  bandit.arms.forEach(function(arm) { armKeys[arm.key] = arm })
+  cards.forEach(function(card) { cardKeys[JSON.stringify(card)] = card })
+
+  // Remove cards from bandit:
+  bandit.arms = bandit.arms.filter(function(arm) {
+    if(!(arm.key in cardKeys)) return
+    delete cardKeys[arm.key] // Prevent duplicates
+    return true
+  })
+
+  // Add cards to bandit:
+  Object.keys(cardKeys).forEach(function(cardKey) {
+    if(cardKey in armKeys) return
+    var arm = armKeys[cardKey] || new Bandit.Arm
+    arm.key = cardKey
+    arm.card = cardKeys[cardKey]
+    armKeys[cardKey] = arm
+    bandit.arms.push(arm)
+  })
+}
+
+function saveBandit() {
+  localStorage.banditArms = JSON.stringify(bandit.arms)
+}
+
+function question() {
+  currentArmIndex = bandit.selectArm()
+  var arm = bandit.arms[currentArmIndex]
+  cardFront.innerHTML = arm.card.front
+  cardBack.innerHTML = arm.card.back
+  document.body.classList.remove('answering')
+  start = +new Date
+}
+
+function showAnswer() {
+  end = +new Date
+  document.body.classList.add('answering')
+}
+
+function right() {
+  track(end - start)
+  question()
+}
+
+function wrong() {
+  document.body.classList.remove('answering')
+}
+
+function track(diff) {
+  var max = 60000
+    , bounded = Math.min(diff, max)
+    , score = bounded / max
+  bandit.arms[currentArmIndex].reward(score)
+  console.log('score is: ' + score)
+  saveBandit()
+}
+
+function skip() {
+  if(!bandit || !confirm('Are you sure you want to remove this card?')) return
+  bandit.arms[currentArmIndex].skipped = true
+  saveBandit()
+  question()
+}
+
+</script>

@@ -1,0 +1,28 @@
+{
+  "name": "kengard",
+  "version": "0.1.0",
+  "description": "Spaced repetition web app focused on speed drills.",
+  "main": "index.js",
+  "dependencies": {
+    "bayesian-bandit": "^0.9.1",
+    "flat-ui": "^2.1.1",
+    "normalize.css": "^3.0.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/omphalos/kengard"
+  },
+  "keywords": [
+    "spaced-repeition"
+  ],
+  "author": "omphalos",
+  "license": "UNLICENSE",
+  "bugs": {
+    "url": "https://github.com/omphalos/kengard/issues"
+  },
+  "homepage": "https://github.com/omphalos/kengard"
+}
