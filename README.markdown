@@ -20,8 +20,13 @@ I thought this might be a simple and effective way
 to get a randomized spaced-repetition effect
 while incorporating speed into the algorithm.
 
-Data Storage
-============
+Demo
+====
+
+You can see a demo [here](https://omphalos.github.io/kengard).
+
+Notes
+=====
 
 Cards are loaded from cards.json
 (which you can replace with your own set of cards)
